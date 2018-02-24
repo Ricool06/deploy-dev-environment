@@ -1,0 +1,7 @@
+- name: Install "openvpn" package
+  apt:
+    name: openvpn
+    state: present
+
+- name: Copy /usr/share/easy-rsa directory to /etc/openvpn
+  command: cp -r /usr/share/easy-rsa /etc/openvpn

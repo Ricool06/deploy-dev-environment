@@ -1,0 +1,4 @@
+- name: Install "python-apt" package
+  apt:
+    name: python-apt
+    state: present
