@@ -1,0 +1,9 @@
+- name: Install "python-apt" package
+  apt:
+    name: python-apt
+    state: present
+
+- name: Install "python-pexpect" package
+  apt:
+    name: python-pexpect
+    state: present

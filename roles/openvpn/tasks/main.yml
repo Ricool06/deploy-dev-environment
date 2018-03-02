@@ -1,0 +1,37 @@
+- name: Install "openvpn" package
+  apt:
+    name: openvpn
+    state: present
+
+- name: Make easy-rsa directory
+  file:
+    path: "{{ easy_rsa.directory }}"
+    state: directory
+    mode: "u=rwx,g-wx,o-rwx"
+
+- name: Download and unarchive easy-rsa "{{ easy_rsa.version }}" from github
+  unarchive:
+    src: "https://github.com/OpenVPN/easy-rsa/releases/download/v{{ easy_rsa.version }}/EasyRSA-{{ easy_rsa.version }}.tgz"
+    dest: "{{ easy_rsa.directory }}"
+    remote_src: yes
+
+- name: Run init-pki
+  expect:
+    command: "{{ easy_rsa.directory }}/EasyRSA-{{ easy_rsa.version }}/easyrsa init-pki"
+    responses:
+      "(?i)Confirm removal": "yes"
+  register: init_pki_prompt
+
+- debug:
+    var: init_pki_prompt.stdout
+
+- name: Run build-ca
+  expect:
+    command: "{{ easy_rsa.directory }}/EasyRSA-{{ easy_rsa.version }}/easyrsa build-ca"
+    responses:
+      "(?i)Enter PEM pass phrase": "{{ openvpn.ca_cert_password }}"
+      "(?i)Common Name": "ricool.uk"
+  register: build_ca_prompt
+
+- debug:
+    var: build_ca_prompt.stdout

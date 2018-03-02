@@ -1,0 +1,3 @@
+easy_rsa:
+  version: 3.0.4
+  directory: /etc/openvpn/easy-rsa
