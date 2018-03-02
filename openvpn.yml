@@ -1,6 +1,6 @@
 ---
 - hosts: openvpn
-  remote_user: "{{user.name}}"
+  remote_user: "{{ user.name }}"
   become: true
   roles:
     - openvpn
