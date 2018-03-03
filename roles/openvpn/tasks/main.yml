@@ -1,37 +1,100 @@
+- name: Create CA and server groups
+  group:
+    name: "{{ item.group }}"
+    state: present
+    system: yes
+  with_items: "{{ openvpn_users }}"
+
+- name: Create CA and server users
+  user:
+    createhome: yes
+    group: "{{ item.group }}"
+    groups:
+    name: "{{ item.name }}"
+    state: present
+    system: yes
+  with_items: "{{ openvpn_users }}"
+#
+# - name: Add CA and server users to sudoers to workaround ansible's temp file issues
+#   lineinfile:
+#     path: /etc/sudoers
+#     state: present
+#     line: "{{ item.name }} ALL=(ALL) NOPASSWD: ALL"
+#     validate: "visudo -cf %s"
+#   with_items: "{{ openvpn_users }}"
+
 - name: Install "openvpn" package
   apt:
     name: openvpn
     state: present
 
-- name: Make easy-rsa directory
+- name: Make easy-rsa directories
   file:
-    path: "{{ easy_rsa.directory }}"
+    path: "{{ item.easy_rsa_directory }}"
     state: directory
-    mode: "u=rwx,g-wx,o-rwx"
+    group: "{{ item.group }}"
+    owner: "{{ item.name }}"
+    mode: "u=rwx,g=rwx,o-rwx"
+  with_items: "{{ openvpn_users }}"
+
+- name: Make temporary easy-rsa directory
+  file:
+    path: /tmp/easyrsa
+    state: directory
 
 - name: Download and unarchive easy-rsa "{{ easy_rsa.version }}" from github
   unarchive:
     src: "https://github.com/OpenVPN/easy-rsa/releases/download/v{{ easy_rsa.version }}/EasyRSA-{{ easy_rsa.version }}.tgz"
-    dest: "{{ easy_rsa.directory }}"
+    dest: /tmp/easyrsa
     remote_src: yes
+    extra_opts: [--strip-components=1]
+    # WARNING: don't set the permissions here,
+    #          unarchive does not cat about the extra_opts, and sets permissions
+    #          for all files on the system.
+    # group: "{{ item.group }}"
+    # owner: "{{ item.name }}"
+    # mode: "u=rwx,g=rwx,o-rwx"
 
-- name: Run init-pki
-  expect:
-    command: "{{ easy_rsa.directory }}/EasyRSA-{{ easy_rsa.version }}/easyrsa init-pki"
-    responses:
-      "(?i)Confirm removal": "yes"
-  register: init_pki_prompt
+  # Remote src copy doesn't support recursion, so run cp -r instead
+- name: Copy unpacked easy-rsa files to user's easy-rsa directories
+  command: "cp -r /tmp/easyrsa {{ item.easy_rsa_directory }}"
+  with_items: "{{ openvpn_users }}"
 
-- debug:
-    var: init_pki_prompt.stdout
+- name: Run init-pki in CA and server directories
+  command: "{{ item.easy_rsa_directory }}/easyrsa/easyrsa --batch --req-cn={{ openvpn.common_name }} --pki-dir={{ item.home_directory }} init-pki"
+  with_items: "{{ openvpn_users }}"
 
 - name: Run build-ca
   expect:
-    command: "{{ easy_rsa.directory }}/EasyRSA-{{ easy_rsa.version }}/easyrsa build-ca"
+    command: "{{ openvpn_users[0].easy_rsa_directory }}/easyrsa/easyrsa --batch --req-cn={{ openvpn.common_name }} --pki-dir={{ openvpn_users[0].home_directory }} build-ca"
     responses:
       "(?i)Enter PEM pass phrase": "{{ openvpn.ca_cert_password }}"
-      "(?i)Common Name": "ricool.uk"
   register: build_ca_prompt
 
 - debug:
-    var: build_ca_prompt.stdout
+    var: build_ca_prompt
+
+- name: Run gen-req for server
+  command: "{{ openvpn_users[1].easy_rsa_directory }}/easyrsa/easyrsa --batch --req-cn={{ openvpn.common_name }} --pki-dir={{ openvpn_users[1].home_directory }} gen-req {{ openvpn.common_name }} nopass"
+  register: gen_req_prompt
+
+- debug:
+    var: gen_req_prompt
+
+- name: Change easy-rsa directory permissions and ownership
+  file:
+    path: "{{ item.easy_rsa_directory }}"
+    group: "{{ item.group }}"
+    owner: "{{ item.name }}"
+    mode: "u=rwx,g=rwx,o-rwx"
+    recurse: yes
+  with_items: "{{ openvpn_users }}"
+
+- name: Change home directory permissions and ownership
+  file:
+    path: "{{ item.home_directory }}"
+    group: "{{ item.group }}"
+    owner: "{{ item.name }}"
+    mode: "u=rwx,g=rwx,o-rwx"
+    recurse: yes
+  with_items: "{{ openvpn_users }}"

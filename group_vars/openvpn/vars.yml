@@ -1,3 +1,13 @@
 easy_rsa:
   version: 3.0.4
-  directory: /etc/openvpn/easy-rsa
+  temp_directory: /tmp/easy-rsa/
+
+openvpn_users:
+  - name: openvpnca
+    group: openvpnca
+    easy_rsa_directory: /etc/openvpn/easy-rsa/ca
+    home_directory: /home/openvpnca
+  - name: openvpnserver
+    group: openvpnserver
+    easy_rsa_directory: /etc/openvpn/easy-rsa/server
+    home_directory: /home/openvpnserver
