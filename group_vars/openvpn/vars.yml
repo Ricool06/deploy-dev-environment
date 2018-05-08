@@ -1,6 +1,7 @@
 easy_rsa:
   version: 3.0.4
-  temp_directory: /tmp/easy-rsa/
+  temp_directory: /tmp/easy-rsa
+  temp_reqs_directory: /tmp/reqs
 
 openvpn_users:
   - name: openvpnca
