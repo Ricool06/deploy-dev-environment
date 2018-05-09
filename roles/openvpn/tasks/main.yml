@@ -127,7 +127,7 @@
 - debug:
     var: import_req_prompt
 
-- name: Import and then sign request file as a server (this step may fail if a request has already been imported)
+- name: Sign request file as a server
   expect:
     command: >
       {{ openvpn_users[0].easy_rsa_directory }}/easy-rsa/easyrsa
