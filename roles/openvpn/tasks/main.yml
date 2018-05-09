@@ -56,6 +56,8 @@
      --req-cn={{ openvpn.common_name }}
      --pki-dir={{ item.home_directory }}/pki
      init-pki
+  args:
+    creates: "{{ item.home_directory }}/pki"
   with_items: "{{ openvpn_users }}"
 
 - name: Run build-ca
@@ -68,6 +70,8 @@
        build-ca
     responses:
       "(?i)Enter PEM pass phrase": "{{ openvpn.ca_cert_password }}"
+  args:
+    creates: "{{ openvpn_users[0].home_directory }}/pki/ca.crt"
   register: build_ca_prompt
 
 - debug:
@@ -80,6 +84,8 @@
      --req-cn={{ openvpn.common_name }}
      --pki-dir={{ openvpn_users[1].home_directory }}/pki
      gen-req {{ openvpn.common_name }} nopass
+  args:
+    creates: "{{ openvpn_users[1].home_directory }}/pki/reqs/{{ openvpn.common_name }}.req"
   register: gen_req_prompt
 
 - debug:
@@ -114,12 +120,14 @@
      --req-cn={{ openvpn.common_name }}
      --pki-dir={{ openvpn_users[0].home_directory }}/pki
      import-req {{ easy_rsa.temp_reqs_directory }}/{{ openvpn.common_name }}.req {{ openvpn.common_name }}
+  args:
+    creates: "{{ openvpn_users[0].home_directory }}/pki/reqs/{{ openvpn.common_name }}.req"
   register: import_req_prompt
 
 - debug:
     var: import_req_prompt
 
-- name: Sign request file as a server
+- name: Import and then sign request file as a server (this step may fail if a request has already been imported)
   expect:
     command: >
       {{ openvpn_users[0].easy_rsa_directory }}/easy-rsa/easyrsa
@@ -130,10 +138,9 @@
     responses:
       "(?i)Confirm request details": yes
       "(?i)Enter pass phrase for": "{{ openvpn.ca_cert_password }}"
+  args:
+    creates: "{{ openvpn_users[0].home_directory }}/pki/issued/{{ openvpn.common_name }}.crt"
   register: sign_req_prompt
-
-- debug:
-    var: sign_req_prompt
 
 - name: Return signed certificate to server
   copy:
@@ -147,11 +154,17 @@
     dest: "{{ openvpn_users[1].home_directory }}/pki/ca.crt"
     remote_src: yes
 
-- name: Generate Diffie-Hellman parameters
-  command: >
-    {{ openvpn_users[1].easy_rsa_directory }}/easy-rsa/easyrsa
-     --pki-dir={{ openvpn_users[1].home_directory }}/pki
-     gen-dh
+#The following is written using _raw_params in order to use creates alongside YAML
+#folding: https://github.com/ansible/ansible/issues/24077
+- name: Generate Diffie-Hellman parameters (can take a while)
+  command: "{{ openvpn_users[1].easy_rsa_directory }}/easy-rsa/easyrsa --pki-dir={{ openvpn_users[1].home_directory }}/pki gen-dh"
+  args:
+    creates: "{{ openvpn_users[1].home_directory }}/pki/dh.pem"
+
+- name: Create server config file
+  template:
+    src: server.conf.j2
+    dest: "{{ openvpn_users[1].home_directory }}/pki/server.conf"
 
 - name: Change home directory permissions and ownership
   file:
@@ -159,5 +172,14 @@
     group: "{{ item.group }}"
     owner: "{{ item.name }}"
     mode: "u=rwx,g=rwx,o-rwx"
+    recurse: yes
+  with_items: "{{ openvpn_users }}"
+
+- name: Change private directory permissions and ownership
+  file:
+    path: "{{ item.home_directory }}/pki"
+    group: "{{ item.group }}"
+    owner: "{{ item.name }}"
+    mode: "u=rwx,g-rwx,o-rwx"
     recurse: yes
   with_items: "{{ openvpn_users }}"
