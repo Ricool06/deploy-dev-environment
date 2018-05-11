@@ -1,0 +1,2 @@
+request_short_filename: "{{ local_req_file.split('/')[-1] }}"
+unique_request_name: "{{ request_short_filename.split('.req')[0] }}"
