@@ -72,10 +72,6 @@
       "(?i)Enter PEM pass phrase": "{{ openvpn.ca_cert_password }}"
   args:
     creates: "{{ openvpn_users[0].home_directory }}/pki/ca.crt"
-  register: build_ca_prompt
-
-- debug:
-    var: build_ca_prompt
 
 - name: Run gen-req for server
   command: >
@@ -86,10 +82,6 @@
      gen-req {{ openvpn.common_name }} nopass
   args:
     creates: "{{ openvpn_users[1].home_directory }}/pki/reqs/{{ openvpn.common_name }}.req"
-  register: gen_req_prompt
-
-- debug:
-    var: gen_req_prompt
 
 - name: Change easy-rsa directory permissions and ownership
   file:
@@ -122,10 +114,6 @@
      import-req {{ easy_rsa.temp_reqs_directory }}/{{ openvpn.common_name }}.req {{ openvpn.common_name }}
   args:
     creates: "{{ openvpn_users[0].home_directory }}/pki/reqs/{{ openvpn.common_name }}.req"
-  register: import_req_prompt
-
-- debug:
-    var: import_req_prompt
 
 - name: Sign request file as a server
   expect:
@@ -140,7 +128,6 @@
       "(?i)Enter pass phrase for": "{{ openvpn.ca_cert_password }}"
   args:
     creates: "{{ openvpn_users[0].home_directory }}/pki/issued/{{ openvpn.common_name }}.crt"
-  register: sign_req_prompt
 
 - name: Return signed certificate to server
   copy:
@@ -164,7 +151,7 @@
 - name: Create server config file
   template:
     src: server.conf.j2
-    dest: "{{ openvpn_users[1].home_directory }}/pki/server.conf"
+    dest: "/etc/openvpn/server.conf"
 
 - name: Change home directory permissions and ownership
   file:
@@ -183,3 +170,25 @@
     mode: "u=rwx,g-rwx,o-rwx"
     recurse: yes
   with_items: "{{ openvpn_users }}"
+
+- name: Enable IP forwarding
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: 1
+    state: present
+
+  # https://www.karlrupp.net/en/computer/nat_tutorial
+  # Have a look here to see how this works, look for the section with the
+  # iptables usage
+- name: Masquerade packets from clients as packets from VPN server
+  iptables:
+    action: append
+    chain: POSTROUTING
+    jump: MASQUERADE
+    table: nat
+
+- name: Start OpenVPN
+  service:
+    name: openvpn@server
+    state: started
+    enabled: yes

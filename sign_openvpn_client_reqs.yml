@@ -1,0 +1,6 @@
+---
+- hosts: openvpn
+  remote_user: "{{ user.name }}"
+  become: true
+  roles:
+    - sign_openvpn_client_reqs

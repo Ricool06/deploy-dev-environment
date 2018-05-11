@@ -1,0 +1,53 @@
+---
+
+# Extra vars using -e flag must be passed into this playbook
+#   local_req_file=<path to file>
+
+- name: Make temporary directory to store request file
+  file:
+    state: directory
+    dest: "{{ easy_rsa.temp_reqs_directory }}"
+
+- name: Copy local client request file to server
+  copy:
+    src: "{{ local_req_file }}"
+    dest: "{{ easy_rsa.temp_reqs_directory }}/{{ request_short_filename }}"
+
+- name: Import all requests from shared space
+  command: >
+    {{ openvpn_users[0].easy_rsa_directory }}/easy-rsa/easyrsa
+     --batch
+     --req-cn={{ unique_request_name }}
+     --pki-dir={{ openvpn_users[0].home_directory }}/pki
+     import-req {{ easy_rsa.temp_reqs_directory }}/{{ request_short_filename }} {{ unique_request_name }}
+  args:
+    creates: "{{ openvpn_users[0].home_directory }}/pki/reqs/{{ unique_request_name }}.req"
+
+- name: Sign request file as client
+  expect:
+    command: >
+      {{ openvpn_users[0].easy_rsa_directory }}/easy-rsa/easyrsa
+       --batch
+       --req-cn={{ unique_request_name }}
+       --pki-dir={{ openvpn_users[0].home_directory }}/pki
+       sign-req client {{ unique_request_name }}
+    responses:
+      "(?i)Confirm request details": yes
+      "(?i)Enter pass phrase for": "{{ openvpn.ca_cert_password }}"
+  args:
+    creates: "{{ openvpn_users[0].home_directory }}/pki/issued/{{ unique_request_name }}.crt"
+
+- name: Change home directory permissions and ownership
+  file:
+    path: "{{ openvpn_users[0].home_directory }}/pki/issued/{{ unique_request_name }}.crt"
+    owner: "{{ openvpn_users[0].name }}"
+    mode: "u=rwx,g=rwx,o-rwx"
+
+- name: Fetch the ca cert and signed client cert from server
+  fetch:
+    src: "{{ item }}"
+    dest: /tmp/openvpn-client-files/
+    flat: yes
+  with_items:
+    - "{{ openvpn_users[0].home_directory }}/pki/ca.crt"
+    - "{{ openvpn_users[0].home_directory }}/pki/issued/{{ unique_request_name }}.crt"
