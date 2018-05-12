@@ -32,7 +32,6 @@
        --pki-dir={{ openvpn_users[0].home_directory }}/pki
        sign-req client {{ unique_request_name }}
     responses:
-      "(?i)Confirm request details": yes
       "(?i)Enter pass phrase for": "{{ openvpn.ca_cert_password }}"
   args:
     creates: "{{ openvpn_users[0].home_directory }}/pki/issued/{{ unique_request_name }}.crt"
