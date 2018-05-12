@@ -14,4 +14,6 @@ persist-key
 persist-tun
 verb 0
 explicit-exit-notify 1
-push "redirect-gateway def1 bypass-dhcp"
+push "redirect-gateway def1"
+push "dhcp-option DNS 8.8.8.8"
+push "dhcp-option DNS 8.8.4.4"
