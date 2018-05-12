@@ -60,8 +60,10 @@ This project sets up the following services on a given host:
   ```
   Done! You now have:
     - a signed client certificate `<unique client name>.crt`
+    - the key file for your client cert `<path to your pki folder>/private/<unique client name>.key`
     - the certificate authority certificate `ca.crt`
-    - and key file `<path to your pki folder>/private/<unique client name>.key`
+    - and the static key `ta.key`
+
 
 ### What next?
 Depending on your operating system and personal preference, you'll want to **install an OpenVPN client**.
@@ -75,3 +77,4 @@ The entries you will _need_ to replace are:
   - ca _/path/to/ca/cert/file/ca.crt_
   - cert _/path/to/client/cert/file/client.crt_
   - key _/path/to/client/cert/key/file/client.key_
+  - tls-auth _/path/to/ta.key_ 1

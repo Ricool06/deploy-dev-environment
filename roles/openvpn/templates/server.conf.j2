@@ -8,7 +8,7 @@ dh {{ openvpn_users[1].home_directory }}/pki/dh.pem
 server 10.8.0.0 255.255.255.0
 ifconfig-pool-persist ipp.txt
 keepalive 10 120
-;tls-auth {{ openvpn_users[1].home_directory }}/pki/private/ta.key
+tls-auth {{ openvpn_users[1].home_directory }}/pki/private/ta.key 0
 cipher AES-256-CBC
 persist-key
 persist-tun

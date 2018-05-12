@@ -49,5 +49,6 @@
     dest: /tmp/openvpn-client-files/
     flat: yes
   with_items:
+    - "{{ openvpn_users[1].home_directory }}/pki/private/ta.key"
     - "{{ openvpn_users[0].home_directory }}/pki/ca.crt"
     - "{{ openvpn_users[0].home_directory }}/pki/issued/{{ unique_request_name }}.crt"

@@ -148,6 +148,12 @@
   args:
     creates: "{{ openvpn_users[1].home_directory }}/pki/dh.pem"
 
+- name: Generate static key to be pre-shared
+  command: >
+    openvpn --genkey --secret {{ openvpn_users[1].home_directory }}/pki/private/ta.key
+  args:
+    creates: "{{ openvpn_users[1].home_directory }}/pki/private/ta.key"
+
 - name: Create server config file
   template:
     src: server.conf.j2
