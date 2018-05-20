@@ -18,10 +18,10 @@
     {{ openvpn_users[0].easy_rsa_directory }}/easy-rsa/easyrsa
      --batch
      --req-cn={{ unique_request_name }}
-     --pki-dir={{ openvpn_users[0].home_directory }}/pki
+     --pki-dir={{ openvpn_users[0].pki_directory }}
      import-req {{ easy_rsa.temp_reqs_directory }}/{{ request_short_filename }} {{ unique_request_name }}
   args:
-    creates: "{{ openvpn_users[0].home_directory }}/pki/reqs/{{ unique_request_name }}.req"
+    creates: "{{ openvpn_users[0].pki_directory }}/reqs/{{ unique_request_name }}.req"
 
 - name: Sign request file as client
   expect:
@@ -29,16 +29,16 @@
       {{ openvpn_users[0].easy_rsa_directory }}/easy-rsa/easyrsa
        --batch
        --req-cn={{ unique_request_name }}
-       --pki-dir={{ openvpn_users[0].home_directory }}/pki
+       --pki-dir={{ openvpn_users[0].pki_directory }}
        sign-req client {{ unique_request_name }}
     responses:
       "(?i)Enter pass phrase for": "{{ openvpn.ca_cert_password }}"
   args:
-    creates: "{{ openvpn_users[0].home_directory }}/pki/issued/{{ unique_request_name }}.crt"
+    creates: "{{ openvpn_users[0].pki_directory }}/issued/{{ unique_request_name }}.crt"
 
 - name: Change home directory permissions and ownership
   file:
-    path: "{{ openvpn_users[0].home_directory }}/pki/issued/{{ unique_request_name }}.crt"
+    path: "{{ openvpn_users[0].pki_directory }}/issued/{{ unique_request_name }}.crt"
     owner: "{{ openvpn_users[0].name }}"
     mode: "u=rwx,g=rwx,o-rwx"
 
@@ -48,6 +48,6 @@
     dest: /tmp/openvpn-client-files/
     flat: yes
   with_items:
-    - "{{ openvpn_users[1].home_directory }}/pki/private/ta.key"
-    - "{{ openvpn_users[0].home_directory }}/pki/ca.crt"
-    - "{{ openvpn_users[0].home_directory }}/pki/issued/{{ unique_request_name }}.crt"
+    - "{{ openvpn_users[1].pki_directory }}/private/ta.key"
+    - "{{ openvpn_users[0].pki_directory }}/ca.crt"
+    - "{{ openvpn_users[0].pki_directory }}/issued/{{ unique_request_name }}.crt"
