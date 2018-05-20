@@ -7,8 +7,8 @@ openvpn_users:
   - name: openvpnca
     group: openvpnca
     easy_rsa_directory: /etc/openvpn/easy-rsa/ca
-    home_directory: /home/openvpnca
-  - name: openvpnserver
-    group: openvpnserver
+    pki_directory: /home/openvpnca/pki
+  - name: root
+    group: root
     easy_rsa_directory: /etc/openvpn/easy-rsa/server
-    home_directory: /home/openvpnserver
+    pki_directory: /etc/openvpn/pki

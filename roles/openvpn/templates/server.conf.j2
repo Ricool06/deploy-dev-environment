@@ -1,14 +1,14 @@
 port 1194
 proto udp
 dev tun
-ca {{ openvpn_users[1].home_directory }}/pki/ca.crt
-cert {{ openvpn_users[1].home_directory }}/pki/{{ openvpn.common_name }}.crt
-key {{ openvpn_users[1].home_directory }}/pki/private/{{ openvpn.common_name }}.key
-dh {{ openvpn_users[1].home_directory }}/pki/dh.pem
+ca {{ openvpn_users[1].pki_directory }}/ca.crt
+cert {{ openvpn_users[1].pki_directory }}/{{ openvpn.common_name }}.crt
+key {{ openvpn_users[1].pki_directory }}/private/{{ openvpn.common_name }}.key
+dh {{ openvpn_users[1].pki_directory }}/dh.pem
 server 10.8.0.0 255.255.255.0
 ifconfig-pool-persist ipp.txt
 keepalive 10 120
-tls-auth {{ openvpn_users[1].home_directory }}/pki/private/ta.key 0
+tls-auth {{ openvpn_users[1].pki_directory }}/private/ta.key 0
 cipher AES-256-CBC
 persist-key
 persist-tun

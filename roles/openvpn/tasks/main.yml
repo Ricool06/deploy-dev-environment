@@ -20,7 +20,7 @@
     name: openvpn
     state: present
 
-- name: Make easy-rsa directories
+- name: Make user-specific easy-rsa directories
   file:
     path: "{{ item.easy_rsa_directory }}"
     state: directory
@@ -40,13 +40,17 @@
     dest: "{{ easy_rsa.temp_directory }}"
     remote_src: yes
     extra_opts: [--strip-components=1]
+  args:
+    creates: "{{ easy_rsa.temp_directory }}/easyrsa"
     # WARNING: don't set the permissions here,
     #          unarchive does not care about the extra_opts, and sets permissions
     #          for all files on the system.
 
   # Remote src copy doesn't support recursion, so run cp -r instead
-- name: Copy unpacked easy-rsa files to user's easy-rsa directories
+- name: Copy unpacked easy-rsa files to users' easy-rsa directories
   command: "cp -r {{ easy_rsa.temp_directory }} {{ item.easy_rsa_directory }}"
+  args:
+    creates: "{{ item.easy_rsa_directory }}/easyrsa"
   with_items: "{{ openvpn_users }}"
 
 - name: Run init-pki in CA and server directories
@@ -54,10 +58,10 @@
     {{ item.easy_rsa_directory }}/easy-rsa/easyrsa
      --batch
      --req-cn={{ openvpn.common_name }}
-     --pki-dir={{ item.home_directory }}/pki
+     --pki-dir={{ item.pki_directory }}
      init-pki
   args:
-    creates: "{{ item.home_directory }}/pki"
+    creates: "{{ item.pki_directory }}"
   with_items: "{{ openvpn_users }}"
 
 - name: Run build-ca
@@ -66,22 +70,22 @@
       {{ openvpn_users[0].easy_rsa_directory }}/easy-rsa/easyrsa
        --batch
        --req-cn={{ openvpn.common_name }}
-       --pki-dir={{ openvpn_users[0].home_directory }}/pki
+       --pki-dir={{ openvpn_users[0].pki_directory }}
        build-ca
     responses:
       "(?i)Enter PEM pass phrase": "{{ openvpn.ca_cert_password }}"
   args:
-    creates: "{{ openvpn_users[0].home_directory }}/pki/ca.crt"
+    creates: "{{ openvpn_users[0].pki_directory }}/ca.crt"
 
 - name: Run gen-req for server
   command: >
     {{ openvpn_users[1].easy_rsa_directory }}/easy-rsa/easyrsa
      --batch
      --req-cn={{ openvpn.common_name }}
-     --pki-dir={{ openvpn_users[1].home_directory }}/pki
+     --pki-dir={{ openvpn_users[1].pki_directory }}
      gen-req {{ openvpn.common_name }} nopass
   args:
-    creates: "{{ openvpn_users[1].home_directory }}/pki/reqs/{{ openvpn.common_name }}.req"
+    creates: "{{ openvpn_users[1].pki_directory }}/reqs/{{ openvpn.common_name }}.req"
 
 - name: Change easy-rsa directory permissions and ownership
   file:
@@ -99,7 +103,7 @@
 
 - name: Copy server request file into a shared space so the CA can sign it
   copy:
-    src: "{{ openvpn_users[1].home_directory }}/pki/reqs/{{ openvpn.common_name }}.req"
+    src: "{{ openvpn_users[1].pki_directory }}/reqs/{{ openvpn.common_name }}.req"
     dest: "{{ easy_rsa.temp_reqs_directory }}/{{ openvpn.common_name }}.req"
     remote_src: yes
     group: "{{ openvpn_users[0].group }}"
@@ -110,10 +114,10 @@
     {{ openvpn_users[0].easy_rsa_directory }}/easy-rsa/easyrsa
      --batch
      --req-cn={{ openvpn.common_name }}
-     --pki-dir={{ openvpn_users[0].home_directory }}/pki
+     --pki-dir={{ openvpn_users[0].pki_directory }}
      import-req {{ easy_rsa.temp_reqs_directory }}/{{ openvpn.common_name }}.req {{ openvpn.common_name }}
   args:
-    creates: "{{ openvpn_users[0].home_directory }}/pki/reqs/{{ openvpn.common_name }}.req"
+    creates: "{{ openvpn_users[0].pki_directory }}/reqs/{{ openvpn.common_name }}.req"
 
 - name: Sign request file as a server
   expect:
@@ -121,38 +125,36 @@
       {{ openvpn_users[0].easy_rsa_directory }}/easy-rsa/easyrsa
        --batch
        --req-cn={{ openvpn.common_name }}
-       --pki-dir={{ openvpn_users[0].home_directory }}/pki
+       --pki-dir={{ openvpn_users[0].pki_directory }}
        sign-req server {{ openvpn.common_name }}
     responses:
       "(?i)Confirm request details": yes
       "(?i)Enter pass phrase for": "{{ openvpn.ca_cert_password }}"
   args:
-    creates: "{{ openvpn_users[0].home_directory }}/pki/issued/{{ openvpn.common_name }}.crt"
+    creates: "{{ openvpn_users[0].pki_directory }}/issued/{{ openvpn.common_name }}.crt"
 
 - name: Return signed certificate to server
   copy:
-    src: "{{ openvpn_users[0].home_directory }}/pki/issued/{{ openvpn.common_name }}.crt"
-    dest: "{{ openvpn_users[1].home_directory }}/pki/{{ openvpn.common_name }}.crt"
+    src: "{{ openvpn_users[0].pki_directory }}/issued/{{ openvpn.common_name }}.crt"
+    dest: "{{ openvpn_users[1].pki_directory }}/{{ openvpn.common_name }}.crt"
     remote_src: yes
 
 - name: Return ca certificate to server
   copy:
-    src: "{{ openvpn_users[0].home_directory }}/pki/ca.crt"
-    dest: "{{ openvpn_users[1].home_directory }}/pki/ca.crt"
+    src: "{{ openvpn_users[0].pki_directory }}/ca.crt"
+    dest: "{{ openvpn_users[1].pki_directory }}/ca.crt"
     remote_src: yes
 
-#The following is written using _raw_params in order to use creates alongside YAML
-#folding: https://github.com/ansible/ansible/issues/24077
 - name: Generate Diffie-Hellman parameters (can take a while)
-  command: "{{ openvpn_users[1].easy_rsa_directory }}/easy-rsa/easyrsa --pki-dir={{ openvpn_users[1].home_directory }}/pki gen-dh"
+  command: "{{ openvpn_users[1].easy_rsa_directory }}/easy-rsa/easyrsa --pki-dir={{ openvpn_users[1].pki_directory }} gen-dh"
   args:
-    creates: "{{ openvpn_users[1].home_directory }}/pki/dh.pem"
+    creates: "{{ openvpn_users[1].pki_directory }}/dh.pem"
 
 - name: Generate static key to be pre-shared
   command: >
-    openvpn --genkey --secret {{ openvpn_users[1].home_directory }}/pki/private/ta.key
+    openvpn --genkey --secret {{ openvpn_users[1].pki_directory }}/private/ta.key
   args:
-    creates: "{{ openvpn_users[1].home_directory }}/pki/private/ta.key"
+    creates: "{{ openvpn_users[1].pki_directory }}/private/ta.key"
 
 - name: Create server config file
   template:
@@ -161,18 +163,9 @@
   notify:
     - restart openvpn
 
-- name: Change home directory permissions and ownership
-  file:
-    path: "{{ item.home_directory }}/pki"
-    group: "{{ item.group }}"
-    owner: "{{ item.name }}"
-    mode: "u=rwx,g=rwx,o-rwx"
-    recurse: yes
-  with_items: "{{ openvpn_users }}"
-
 - name: Change private directory permissions and ownership
   file:
-    path: "{{ item.home_directory }}/pki"
+    path: "{{ item.pki_directory }}"
     group: "{{ item.group }}"
     owner: "{{ item.name }}"
     mode: "u=rwx,g-rwx,o-rwx"
@@ -194,9 +187,3 @@
     chain: POSTROUTING
     jump: MASQUERADE
     table: nat
-
-- name: Start OpenVPN
-  service:
-    name: openvpn@server
-    state: started
-    enabled: yes
