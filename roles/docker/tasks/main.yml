@@ -1,0 +1,11 @@
+---
+- name: Install docker
+  apt:
+    name: docker.io
+    state: present
+
+- name: Start docker and make it start on boot
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
