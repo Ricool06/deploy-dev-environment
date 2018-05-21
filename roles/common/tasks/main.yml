@@ -1,3 +1,9 @@
+- name: Use Google's DNS servers
+  template:
+    src: resolv.conf.j2
+    dest: /etc/resolv.conf
+    attributes: i
+
 - name: Install pip
   apt:
     name: python-pip
@@ -11,4 +17,9 @@
 - name: Install "python-pexpect" package
   apt:
     name: python-pexpect
+    state: present
+
+- name: Install "docker-py" package
+  pip:
+    name: docker-py
     state: present
