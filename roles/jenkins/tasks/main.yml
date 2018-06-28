@@ -1,8 +1,28 @@
 ---
 
+- name: Create docker volume to store startup scripts
+  docker_volume:
+    name: "{{ jenkins.volume_id }}"
+    force: no
+    state: present
+
 - name: Start jenkins docker image
   docker_container:
     name: jenkins
     image: "{{ jenkins.image_name }}"
     published_ports: 8080:8080
+    env:
+      JAVA_OPTS: "-Djenkins.install.runSetupWizard=false"
+    volumes:
+      - "{{ jenkins.volume_id }}:{{ jenkins.volume_dir }}[rw]"
     state: started
+
+- name: Execute script to create admin user
+  jenkins_script:
+    args: "{{ jenkins_vault.create_users_args }}"
+    script: "{{ create_users_script }}"
+    url: "http://{{ ansible_hostname }}:8080"
+    timeout: 10
+  register: create_users_script_exec
+  retries: 5
+  until: create_users_script_exec.failed == false
