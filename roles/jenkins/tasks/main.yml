@@ -21,8 +21,52 @@
   jenkins_script:
     args: "{{ jenkins_vault.create_users_args }}"
     script: "{{ create_users_script }}"
-    url: "http://{{ ansible_hostname }}:8080"
+    url: "http://{{ inventory_hostname }}:8080"
     timeout: 10
+    user: "{{ jenkins_vault.create_users_args.username }}"
+    password: "{{ jenkins_vault.create_users_args.password }}"
   register: create_users_script_exec
   retries: 5
   until: create_users_script_exec.failed == false
+
+- name: Execute script to disable Jenkins CLI
+  jenkins_script:
+    script: "{{ disable_cli_script }}"
+    user: "{{ jenkins_vault.create_users_args.username }}"
+    password: "{{ jenkins_vault.create_users_args.password }}"
+    url: "http://{{ inventory_hostname }}:8080"
+    timeout: 10
+
+- name: Execute script to set Jenkins' URL
+  jenkins_script:
+    args: { jenkins_url: "http://{{ inventory_hostname }}:8080" }
+    script: "{{ set_url_script }}"
+    user: "{{ jenkins_vault.create_users_args.username }}"
+    password: "{{ jenkins_vault.create_users_args.password }}"
+    url: "http://{{ inventory_hostname }}:8080"
+    timeout: 10
+  register: set_url
+
+- name: Execute script to set crumb issuer to prevent CSRF attacks
+  jenkins_script:
+    script: "{{ set_crumb_issuer_script }}"
+    user: "{{ jenkins_vault.create_users_args.username }}"
+    password: "{{ jenkins_vault.create_users_args.password }}"
+    url: "http://{{ inventory_hostname }}:8080"
+    timeout: 10
+
+- name: Execute script to stop slave agents using the security killswitch on master
+  jenkins_script:
+    script: "{{ set_master_security_killswitch_off }}"
+    user: "{{ jenkins_vault.create_users_args.username }}"
+    password: "{{ jenkins_vault.create_users_args.password }}"
+    url: "http://{{ inventory_hostname }}:8080"
+    timeout: 10
+
+- name: Execute script to set enabled agent protocols to only non-deprecated protocols
+  jenkins_script:
+    script: "{{ set_enabled_agent_protocols }}"
+    user: "{{ jenkins_vault.create_users_args.username }}"
+    password: "{{ jenkins_vault.create_users_args.password }}"
+    url: "http://{{ inventory_hostname }}:8080"
+    timeout: 10
