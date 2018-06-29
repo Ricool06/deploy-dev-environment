@@ -1,0 +1,58 @@
+create_users_script: |
+  import jenkins.model.*
+  import hudson.security.*
+
+  def instance = Jenkins.get()
+
+  def hudsonRealm = new HudsonPrivateSecurityRealm(false)
+
+  hudsonRealm.createAccount("${username}","${password}")
+  instance.setSecurityRealm(hudsonRealm)
+
+  def strategy = new hudson.security.FullControlOnceLoggedInAuthorizationStrategy()
+  strategy.setAllowAnonymousRead(false)
+  instance.setAuthorizationStrategy(strategy)
+
+  instance.save()
+
+disable_cli_script: |
+  import jenkins.model.*
+
+  def instance = Jenkins.get()
+  instance.getDescriptor("jenkins.CLI").get().setEnabled(false)
+
+set_url_script: |
+  import jenkins.model.*
+
+  def instance = Jenkins.get()
+  def jenkinsLocationConfiguration = JenkinsLocationConfiguration.get()
+
+  jenkinsLocationConfiguration.setUrl("${jenkins_url}")
+  jenkinsLocationConfiguration.save()
+  instance.save()
+
+set_crumb_issuer_script: |
+  import jenkins.model.*
+  import hudson.security.csrf.DefaultCrumbIssuer
+
+  def instance = Jenkins.get()
+  def defaultCrumbIssuer = new DefaultCrumbIssuer(false)
+
+  instance.setCrumbIssuer(defaultCrumbIssuer)
+
+  instance.save()
+
+set_master_security_killswitch_off: |
+  import jenkins.security.s2m.AdminWhitelistRule
+  import jenkins.model.Jenkins
+
+  Jenkins.instance.getInjector().getInstance(AdminWhitelistRule.class).setMasterKillSwitch(false)
+
+set_enabled_agent_protocols: |
+  import jenkins.model.Jenkins
+
+  Set<String> agentProtocols = ['JNLP4-connect', 'Ping']
+  def instance = Jenkins.get()
+  instance.setAgentProtocols(agentProtocols)
+
+  instance.save()

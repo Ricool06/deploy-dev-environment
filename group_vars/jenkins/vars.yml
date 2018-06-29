@@ -1,2 +1,4 @@
 jenkins:
   image_name: jenkinsci/blueocean
+  volume_id: jenkins_home
+  volume_dir: /var/jenkins_home
