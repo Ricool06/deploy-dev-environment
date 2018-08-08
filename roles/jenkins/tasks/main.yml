@@ -11,10 +11,12 @@
     name: jenkins
     image: "{{ jenkins.image_name }}"
     published_ports: 8080:8080
+    user: root
     env:
       JAVA_OPTS: "-Djenkins.install.runSetupWizard=false"
     volumes:
       - "{{ jenkins.volume_id }}:{{ jenkins.volume_dir }}[rw]"
+      - /var/run/docker.sock:/var/run/docker.sock
     state: started
 
 - name: Execute script to create admin user
